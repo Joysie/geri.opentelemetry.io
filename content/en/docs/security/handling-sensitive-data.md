@@ -11,10 +11,9 @@ handling. The collection of telemetry data always carries the risk of
 inadvertently capturing sensitive or personal information that may be subject to
 various privacy regulations and compliance requirements.
 
-## Your responsibility
+## Your Responsibility
 
-OpenTelemetry collects telemetry data, but it can't determine what data is
-sensitive in your specific context on its own. As the implementer, you are
+OpenTelemetry collects telemetry data, but it can’t tell which of that data is sensitive in your context. As the implementer, you are
 responsible for:
 
 - Ensuring compliance with applicable privacy laws and regulations.
@@ -26,18 +25,19 @@ Additionally, you are responsible for understanding and reviewing the telemetry
 data emitted by any instrumentation libraries you use, as these libraries may
 collect and expose sensitive information as well.
 
-## Sensitive data considerations
+## Sensitive Data Considerations
 
-What data is sensitive varies from situation to situation. Examples include:
+What counts as sensitive data depends on your situation. Examples include:
 
-- Personal Identifiable Information (PII)
+- Personally identifiable information (PII)
 - Authentication credentials
 - Session tokens
 - Financial information
+- Location data
 - Health-related data
 - User behavior data
 
-## Data minimization
+## Data Minimization
 
 When collecting potentially sensitive data through telemetry, follow the
 principle of
@@ -49,31 +49,25 @@ means:
 - Consider whether aggregated or anonymized data could serve the same purpose.
 - Regularly review collected attributes to ensure they remain necessary.
 
-## Protecting sensitive data
+## Protecting Sensitive Data
 
-As outlined in the previous section, the best way to prevent the collection of
-sensitive data is not to collect data that might be sensitive. However, you
-might want to collect this data under certain circumstances, or perhaps have no
-full control over the data being collected, and need ways to scrape the data in
-post processing. The following suggestions can help you with that.
-
-The [OpenTelemetry Collector](/docs/collector) provides several processors that
-can help manage sensitive data:
+As outlined in the previous section, the best way to protect sensitive data is to avoid collecting it in the first place. However, you
+might need to collect some of it, or you might not have a full control on what your instrumentation captures. In those cases, you can scrub the data during post-processing. 
+For that purpose, the OpenTelemetry Collector provides several processors:
 
 - [`attribute` processor](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/attributesprocessor):
-  Remove or modify specific attributes.
+  Removes or modifies specific attributes.
 - [`filter` processor](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/filterprocessor):
-  Filter out entire spans or metrics containing sensitive data.
+  Filters out entire spans or metrics containing sensitive data.
 - [`redaction` processor](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/redactionprocessor):
-  Delete span, log, and metric datapoint attributes that don’t match a list of
-  allowed attributes.
+  Deletes span, log, and any metric datapoint attribute that doesn’t match an allowlist.
 - [`transform` processor](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/transformprocessor):
-  Transform data using regular expressions.
+  Transforms data using regular expressions.
 
-### Deleting and hashing user information
+### Deleting and Hashing User Information
 
-The following configuration for the `attribute` processor is hashing the
-`user.email` and deleting `user.full_name` from sensitive
+The following `attributes` processor configuration hashes the
+`user.email` attribute and deletes `user.full_name` from the sensitive
 [`user`](/docs/specs/semconv/registry/attributes/user/#user-hash) information:
 
 ```yaml
@@ -88,8 +82,8 @@ processors:
 
 ### Replacing `user.id` with `user.hash`
 
-The following configuration for the `transform` processor can be used to remove
-the `user.id` and replace it with a `user.hash`:
+The following `transform` processor configuration removes
+the `user.id` attribute and replace it with `user.hash`:
 
 ```yaml
 transform:
@@ -100,25 +94,21 @@ transform:
         - delete_key(attributes, "user.id")
 ```
 
-> [!WARNING] Risk and limitations of hashing for anonymization
+> **[WARNING] Risks and Limitations of Hashing**
 >
-> Hashing the ID or name of a user may not provide the level of anonymization
-> you need, since hashes are reversible in practice if the input space is small
-> and predictable (e.g. numeric user IDs).
+> Hashing a user ID or name may not anonymize it well enough.
+> If the possible inputs are few or predictable (for example, numeric user IDs), the original values can be recovered by brute force.
 
-### Truncating IP addresses
+### Truncating IP Addresses
 
-As an alternative to hashing you can truncate data, or group it by a common
-prefix or suffix. This for example applies to
+As an alternative to hashing, you can truncate data, or group it by a common prefix or suffix. 
+For example, you can apply this approach to:
 
-- dates, where you keep only the year or the year and the month, but drop the
-  day.
-- email addresses, where you drop the local part and only keep the domain.
-- IP addresses, where you drop drop the last octet of IPv4 or the last 80 bits
-  of IPv6.
+- **Dates:** Keep only the year, or the year and the month, but drop the  day.
+- **Email addresses:** Drop the local part and only keep the domain.
+- **IP addresses:** Drop the last octet of IPv4 or the last 80 bits of IPv6.
 
-The following configuration for the `transform` processor drops the last octet
-of a `client.address` attribute:
+The following `transform` processor configuration drops the last octet of the `client.address` attribute:
 
 ```yaml
 transform:
@@ -128,9 +118,8 @@ transform:
         - replace_pattern(attributes["client.address"], "\\.\\d+$", ".0")
 ```
 
-### Delete attributes with redaction processor
+### Deleting Attributes with Redaction Processor
 
-Finally, an example for the `redaction` processor to delete certain attributes
-can be found in the section
-["Scrub sensitive data"](/docs/security/config-best-practices/#scrub-sensitive-data)
-of the security best practices page for Collector configurations.
+To find an example on how the `redaction` processor deletes certain attributes, see [Scrub sensitive data](/docs/security/config-best-practices/#scrub-sensitive-data).
+
+
